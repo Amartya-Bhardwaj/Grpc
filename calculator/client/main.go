@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"io"
 	"log"
 
 	"google.golang.org/grpc"
@@ -10,25 +12,52 @@ import (
 	pb "github.com/Amartya-Bhardwaj/grpc/calculator/proto"
 )
 
-var addr string = "localhost:8000"
+var (
+	addr = flag.String("addr", "localhost:50051", "the address to connect to")
+)
 
-func doSum(c pb.SumServiceClient) {
-	log.Printf("DoSum invoked")
-	res, err := c.Sum(context.Background(), &pb.SumRequest{
+func DoSum(c pb.SumServiceClient) {
+	log.Println("Do sum invoked")
+	req := &pb.SumRequest{
 		FirstNumber:  1,
-		SecondNumber: 2})
+		SecondNumber: 3,
+	}
+	r, err := c.Sum(context.Background(), req)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Result: %d", res.Result)
+	log.Printf("Sum : %d", r.GetResult())
+}
+
+//Server will send many response
+func DoPrime(c pb.SumServiceClient) {
+	log.Println("DoPrime invoked")
+	req := &pb.PrimeRequest{
+		Number: 120,
+	}
+	stream, err := c.Primes(context.Background(), req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Primes: %d", msg.GetResult())
+	}
 }
 
 func main() {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
 	c := pb.NewSumServiceClient(conn)
-	doSum(c)
+	DoSum(c)
+	DoPrime(c)
 }

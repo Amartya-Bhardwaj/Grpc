@@ -25,6 +25,18 @@ func (s *server) Greet(ctx context.Context, in *pb.GreetRequest) (*pb.GreetRespo
 	return &pb.GreetResponse{Result: "Hello" + in.GetFirstName()}, nil
 }
 
+func (s *server) GreetManyTimes(in *pb.GreetRequest, stream pb.GreetService_GreetManyTimesServer) error {
+	log.Printf("Recieved: %v", in.GetFirstName())
+	for i := 0; i < 10; i++ {
+		res := fmt.Sprintf("Hello %s, no: %d", in.GetFirstName(), i)
+		stream.Send(&pb.GreetResponse{
+			Result: res,
+		})
+	}
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
