@@ -22,7 +22,25 @@ message PrimeResponse{
     int64 result = 1;
 }
 
+message AvgRequest{
+    float number = 1;
+}
+
+message AvgResponse{
+    float result = 1;
+}
+
+message MaxRequest{
+    int64 number = 1;
+}
+
+message MaxResponse{
+    int64 result = 1;
+}
+
 service SumService{
     rpc Sum(SumRequest) returns (SumResponse);
     rpc Primes (PrimeRequest) returns (stream PrimeResponse);
+    rpc Average(stream AvgRequest) returns (AvgResponse);
+    rpc Max (stream MaxRequest) returns (stream MaxResponse);
 }

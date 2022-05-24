@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io"
 	"log"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -51,6 +52,72 @@ func DoPrime(c pb.SumServiceClient) {
 	}
 }
 
+func DoAverage(c pb.SumServiceClient) {
+	log.Println("DoAverage invoked")
+	reqs := []*pb.AvgRequest{
+		{Number: 1},
+		{Number: 2},
+		{Number: 3},
+		{Number: 4},
+	}
+	stream, err := c.Average(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, req := range reqs {
+		log.Printf("Sending req : %v\n", req)
+		stream.Send(req)
+		time.Sleep(1 * time.Second)
+	}
+	res, err := stream.CloseAndRecv()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Avg of the requested number : %0.2f", res.GetResult())
+}
+
+func DoMain(c pb.SumServiceClient) {
+	log.Println("Function DoMain invoked")
+	stream, err := c.Max(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	reqs := []*pb.MaxRequest{
+		{Number: 1},
+		{Number: 5},
+		{Number: 3},
+		{Number: 6},
+		{Number: 2},
+		{Number: 20},
+	}
+
+	waitc := make(chan struct{})
+
+	go func() {
+		for _, req := range reqs {
+			log.Printf("Sending req %v\n", req)
+			stream.Send(req)
+			time.Sleep(1 * time.Second)
+		}
+		stream.CloseSend()
+	}()
+
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("Max number: %d", msg.GetResult())
+		}
+		close(waitc)
+	}()
+	<-waitc
+}
+
 func main() {
 	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -58,6 +125,8 @@ func main() {
 	}
 	defer conn.Close()
 	c := pb.NewSumServiceClient(conn)
-	DoSum(c)
-	DoPrime(c)
+	// DoSum(c)
+	//DoPrime(c)
+	DoAverage(c)
+	//DoMain(c)
 }

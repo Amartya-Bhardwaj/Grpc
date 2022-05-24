@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -38,9 +40,54 @@ func (s *server) Primes(in *pb.PrimeRequest, stream pb.SumService_PrimesServer) 
 		} else {
 			k = k + 1
 		}
+		time.Sleep(1 * time.Second)
 	}
 
 	return nil
+}
+
+func (s *server) Average(stream pb.SumService_AverageServer) error {
+	log.Println("Average function invoked")
+	res := float32(0)
+	k := float32(4)
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&pb.AvgResponse{
+				Result: (res / k),
+			})
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Number recieved: %f\n", req.GetNumber())
+		res += req.GetNumber()
+	}
+}
+
+func (s *server) Max(stream pb.SumService_MaxServer) error {
+	log.Println("Max function invoked")
+	res := (int64)(0)
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		if res > req.GetNumber() {
+			res = res
+		} else {
+			res = req.GetNumber()
+		}
+		err = stream.Send(&pb.MaxResponse{
+			Result: res,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func main() {
